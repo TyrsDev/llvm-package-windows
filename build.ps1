@@ -2,7 +2,7 @@ $llvm_version = "14.0.6"
 
 # Check if scoop is installed
 if (!(Get-Command "scoop" -errorAction SilentlyContinue)) {
-    Write-Error "scoop is not installed, get it at: https://https://scoop.sh/"
+    Write-Error "scoop is not installed, get it at: https://scoop.sh/"
 }
 
 if (!(Get-Command "git" -errorAction SilentlyContinue)) {
@@ -17,7 +17,7 @@ if (!(Get-Command "cmake" -errorAction SilentlyContinue)) {
 
 if (!(Get-Command "7z" -errorAction SilentlyContinue)) {
     Write-Output "7z is not installed, installing with scoop"
-    scoop install 7z
+    scoop install 7zip
 }
 
 
