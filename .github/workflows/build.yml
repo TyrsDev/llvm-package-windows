@@ -6,9 +6,9 @@ name: Build
 on:
   # Triggers the workflow on push or pull request events but only for the master branch
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -21,23 +21,21 @@ jobs:
     runs-on: windows-latest
     env:
       llvm_version: 14.0.6
-    
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
-      
+
       - name: Get CMake
         uses: lukka/get-cmake@latest
-      
+
       - name: Checkout llvm
         uses: actions/checkout@v2
         with:
           repository: llvm/llvm-project
           ref: "llvmorg-${{ env.llvm_version }}"
-          path: 'llvm'
-      
+          path: "llvm"
 
       # Runs a single command using the runners shell
       - name: Build llvm
@@ -56,11 +54,8 @@ jobs:
           cmake --build .\build --target INSTALL --config Release -j
           7z a -mx9 "LLVM-${{ env.llvm_version }}-win64.7z" ".\install\*"
 
-      
       - name: Upload artifacts
         uses: actions/upload-artifact@v2.2.4
         with:
           name: LLVM-${{ env.llvm_version }}-win64
           path: LLVM-${{ env.llvm_version }}-win64.7z
-        
-
