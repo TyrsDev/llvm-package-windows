@@ -43,7 +43,7 @@ function build-msvc {
         -DLLVM_ENABLE_PROJECTS="lld;clang" `
         -DCMAKE_BUILD_TYPE=Release `
         -DCMAKE_INSTALL_PREFIX="$install_dir" `
-        -DLLVM_ENABLE_LIBXML2=OFF `
+        -DLLVM_ENABLE_LIBXML2=ON `
         -DLLVM_ENABLE_ZLIB=OFF
         #-DLLVM_ENABLE_ASSERTIONS=ON
 
