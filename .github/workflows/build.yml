@@ -15,13 +15,13 @@ jobs:
       llvm_version: 19.1.0
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Get CMake
         uses: lukka/get-cmake@latest
 
       - name: Checkout llvm
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: llvm/llvm-project
           ref: "llvmorg-${{ env.llvm_version }}"
