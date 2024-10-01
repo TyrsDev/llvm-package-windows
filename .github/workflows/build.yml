@@ -1,4 +1,5 @@
-name: Build
+name: Build and Release
+
 on:
   push:
     branches: [master]
@@ -50,3 +51,19 @@ jobs:
         with:
           name: LLVM-${{ env.llvm_version }}-win64
           path: LLVM-${{ env.llvm_version }}-win64.7z
+
+      - name: Create Release and Upload Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.llvm_version }}
+          name: LLVM-${{ env.llvm_version }}-win64
+          body: |
+            LLVM ${{ env.llvm_version }}, built to be compatible and sufficient for development using the Rust library [inkwell](https://crates.io/crates/inkwell) on Windows.
+            Requires [Visual Studio 2022](https://visualstudio.microsoft.com/vs/community/) with the "Desktop development with C++" workload installed on the Windows computer to enable usage of this LLVM build.
+            Requires [7-zip](https://www.7-zip.org/download.html) to unpack.
+          files: LLVM-${{ env.llvm_version }}-win64.7z
+          draft: false
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
