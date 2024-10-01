@@ -13,9 +13,22 @@ jobs:
 
       - name: Check for new LLVM release
         id: check-release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Fetch the latest release tag from LLVM
-          LATEST_TAG=$(curl -s https://api.github.com/repos/llvm/llvm-project/releases/latest | jq -r .tag_name)
+          # Fetch the latest releases data from LLVM (up to 20)
+          RELEASES=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/llvm/llvm-project/releases?per_page=20")
+
+          # Find the latest non-pre-release
+          LATEST_TAG=$(echo "$RELEASES" | jq -r '[.[] | select(.prerelease == false)] | .[0].tag_name')
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No stable release found."
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           LATEST_VERSION=${LATEST_TAG#llvmorg-}
 
           # Read current version from build.yml
@@ -24,7 +37,8 @@ jobs:
           echo "Latest LLVM version: $LATEST_VERSION"
           echo "Current version: $CURRENT_VERSION"
 
-          if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
+          # Compare versions using sort -V
+          if [ "$(printf '%s\n%s' "$CURRENT_VERSION" "$LATEST_VERSION" | sort -V | tail -n1)" != "$CURRENT_VERSION" ]; then
             echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
             echo "update_needed=true" >> $GITHUB_OUTPUT
           else
@@ -34,9 +48,9 @@ jobs:
       - name: Update build.yml
         if: steps.check-release.outputs.update_needed == 'true'
         run: |
-          sed -i 's/llvm_version: .*/llvm_version: ${{ steps.check-release.outputs.new_version }}/' .github/workflows/build.yml
-          git config user.name github-actions
-          git config user.email github-actions@github.com
+          sed -i "s/llvm_version: .*/llvm_version: ${{ steps.check-release.outputs.new_version }}/" .github/workflows/build.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .github/workflows/build.yml
           git commit -m "Update LLVM version to ${{ steps.check-release.outputs.new_version }}"
           git push
