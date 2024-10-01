@@ -1,0 +1,48 @@
+name: Check LLVM Releases
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # Run daily at midnight UTC
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  check-llvm-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for new LLVM release
+        id: check-release
+        run: |
+          # Fetch the latest release tag from LLVM
+          LATEST_TAG=$(curl -s https://api.github.com/repos/llvm/llvm-project/releases/latest | jq -r .tag_name)
+          LATEST_VERSION=${LATEST_TAG#llvmorg-}
+
+          # Read current version from build.yml
+          CURRENT_VERSION=$(grep 'llvm_version:' .github/workflows/build.yml | awk '{print $2}')
+
+          echo "Latest LLVM version: $LATEST_VERSION"
+          echo "Current version: $CURRENT_VERSION"
+
+          if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
+            echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update build.yml
+        if: steps.check-release.outputs.update_needed == 'true'
+        run: |
+          sed -i 's/llvm_version: .*/llvm_version: ${{ steps.check-release.outputs.new_version }}/' .github/workflows/build.yml
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .github/workflows/build.yml
+          git commit -m "Update LLVM version to ${{ steps.check-release.outputs.new_version }}"
+          git push
+
+      - name: Trigger build workflow
+        if: steps.check-release.outputs.update_needed == 'true'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          event-type: trigger-build
