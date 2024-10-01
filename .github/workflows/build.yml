@@ -1,10 +1,5 @@
-# This is a basic workflow to help you get started with Actions
-
 name: Build
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
     branches: [master]
   pull_request:
@@ -13,31 +8,25 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
     runs-on: windows-latest
     env:
-      llvm_version: 18.1.8
+      llvm_version: 19.1.0
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Get CMake
         uses: lukka/get-cmake@latest
 
       - name: Checkout llvm
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: llvm/llvm-project
           ref: "llvmorg-${{ env.llvm_version }}"
           path: "llvm"
 
-      # Runs a single command using the runners shell
       - name: Build llvm
         run: |
           mkdir build
@@ -57,7 +46,7 @@ jobs:
           7z a -mx9 "LLVM-${{ env.llvm_version }}-win64.7z" ".\install\*"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v4
         with:
           name: LLVM-${{ env.llvm_version }}-win64
           path: LLVM-${{ env.llvm_version }}-win64.7z
