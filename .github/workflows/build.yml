@@ -1,21 +1,27 @@
-name: Build and Release
+name: Build and Release LLVM
 
 on:
   push:
     branches: [master]
+    paths:
+      - '.github/workflows/build.yml'
   pull_request:
     branches: [master]
   repository_dispatch:
-    types: [trigger-build]
-
-  # Allows you to run this workflow manually from the Actions tab
+    types: [update-llvm-version]
   workflow_dispatch:
+    inputs:
+      llvm_version:
+        description: 'LLVM Version to build'
+        required: true
+        default: '19.1.2'
 
 jobs:
   build:
+    name: Build LLVM ${{ github.event.client_payload.version || github.event.inputs.llvm_version || '19.1.2' }}
     runs-on: windows-latest
     env:
-      llvm_version: 19.1.2
+      llvm_version: ${{ github.event.client_payload.version || github.event.inputs.llvm_version || '19.1.2' }}
 
     steps:
       - uses: actions/checkout@v4
