@@ -2,7 +2,7 @@ name: Check LLVM Releases
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Run at the start of every hour
+    - cron: '0 */6 * * *'  # Run every 6 hours (at 00:00, 06:00, 12:00, 18:00 UTC)
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
