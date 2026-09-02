@@ -8,21 +8,29 @@ on:
 jobs:
   check-llvm-release:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write   # keepalive re-enables this scheduled workflow
+      contents: read
     steps:
+      # GitHub disables scheduled workflows after 60 days without commits, which is how
+      # LLVM 22.x and 23.1.0 were missed. This re-enables the workflow on every run.
+      - name: Keep scheduled workflow alive
+        uses: liskin/gh-workflow-keepalive@v1
+
       - name: Check for new LLVM release
         id: check-release
         run: |
           # Fetch the latest release tag from LLVM
           LATEST_TAG=$(curl -s https://api.github.com/repos/llvm/llvm-project/releases/latest | jq -r .tag_name)
           LATEST_VERSION=${LATEST_TAG#llvmorg-}
-          
+
           # Fetch the latest release tag from this repository
           CURRENT_TAG=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
           CURRENT_VERSION=${CURRENT_TAG#v}
-          
+
           echo "Latest LLVM version: $LATEST_VERSION"
           echo "Current version: $CURRENT_VERSION"
-          
+
           if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ]; then
             echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
             echo "update_needed=true" >> $GITHUB_OUTPUT
@@ -32,7 +40,7 @@ jobs:
 
       - name: Trigger build workflow
         if: steps.check-release.outputs.update_needed == 'true'
-        uses: peter-evans/repository-dispatch@v2
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           event-type: update-llvm-version

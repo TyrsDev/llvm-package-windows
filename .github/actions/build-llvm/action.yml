@@ -1,0 +1,103 @@
+name: Build LLVM + MLIR
+description: >
+  Configure and build LLVM/clang/lld/MLIR with Ninja + MSVC, using sccache backed by the
+  GitHub Actions cache. Stops cleanly when the time budget runs out so a follow-up job can
+  resume from the warm cache instead of starting over.
+
+inputs:
+  llvm_version:
+    description: LLVM release version, e.g. 23.1.0
+    required: true
+  build_minutes:
+    description: >
+      Minutes ninja may run before this attempt gives up. The job limit is 360; checkout, configure,
+      7z of the ~14 GB install tree and the artifact upload need the rest.
+    required: false
+    default: "270"
+
+outputs:
+  completed:
+    description: "'true' when the install tree and archive were produced"
+    value: ${{ steps.build.outputs.completed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout llvm-project ${{ inputs.llvm_version }}
+      uses: actions/checkout@v4
+      with:
+        repository: llvm/llvm-project
+        ref: llvmorg-${{ inputs.llvm_version }}
+        path: llvm
+
+    - name: Get CMake and Ninja
+      uses: lukka/get-cmake@latest
+
+    - name: MSVC developer environment
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: sccache
+      uses: mozilla-actions/sccache-action@v0.0.11
+
+    - name: Configure
+      shell: pwsh
+      run: |
+        cmake -S llvm/llvm -B build -G Ninja `
+          -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_INSTALL_PREFIX="$PWD/install" `
+          -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl `
+          -DCMAKE_C_COMPILER_LAUNCHER="$env:SCCACHE_PATH" `
+          -DCMAKE_CXX_COMPILER_LAUNCHER="$env:SCCACHE_PATH" `
+          -DLLVM_ENABLE_PROJECTS="clang;lld;mlir" `
+          -DLLVM_TARGETS_TO_BUILD="X86;AArch64;WebAssembly;SPIRV" `
+          -DLLVM_ENABLE_ASSERTIONS=OFF `
+          -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZLIB=OFF -DLLVM_ENABLE_ZSTD=OFF `
+          -DLLVM_ENABLE_DIA_SDK=OFF `
+          -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF `
+          -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_DOCS=OFF `
+          -DLLVM_PARALLEL_LINK_JOBS=2 `
+          -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_OBJC_REWRITER=OFF `
+          -DMLIR_ENABLE_BINDINGS_PYTHON=OFF `
+          -DMLIR_BUILD_MLIR_C_DYLIB=ON `
+          -DLLVM_BUILD_LLVM_C_DYLIB=ON `
+          -DLLVM_ENABLE_RUNTIMES="compiler-rt" `
+          -DCOMPILER_RT_BUILD_BUILTINS=ON `
+          -DCOMPILER_RT_BUILD_SANITIZERS=OFF -DCOMPILER_RT_BUILD_XRAY=OFF `
+          -DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_PROFILE=OFF `
+          -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_ORC=OFF `
+          -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF -DCOMPILER_RT_INCLUDE_TESTS=OFF
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    - name: Build and install (time-boxed)
+      id: build
+      shell: pwsh
+      env:
+        LLVM_VERSION: ${{ inputs.llvm_version }}
+        BUILD_MINUTES: ${{ inputs.build_minutes }}
+      run: |
+        $budgetMs = [int]$env:BUILD_MINUTES * 60 * 1000
+        $ninja = Start-Process -FilePath ninja -ArgumentList '-C', 'build', 'install' -NoNewWindow -PassThru
+        if (-not $ninja.WaitForExit($budgetMs)) {
+          Write-Host "::warning::Build time budget of $env:BUILD_MINUTES minutes exhausted; stopping ninja. A resume job will continue from the sccache cache."
+          taskkill /PID $ninja.Id /T /F | Out-Null
+          Start-Sleep -Seconds 5
+          "completed=false" >> $env:GITHUB_OUTPUT
+          exit 0
+        }
+        if ($ninja.ExitCode -ne 0) {
+          "completed=false" >> $env:GITHUB_OUTPUT
+          exit $ninja.ExitCode
+        }
+        # -mx7 rather than -mx9: on a 4-core runner -mx9 on a ~14 GB tree could eat the rest of the job limit
+        7z a -mx7 -mmt=on "LLVM-$env:LLVM_VERSION-win64.7z" ".\install\*"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Get-Item "LLVM-$env:LLVM_VERSION-win64.7z" | Select-Object Name, Length
+        "completed=true" >> $env:GITHUB_OUTPUT
+
+    - name: sccache statistics
+      if: always()
+      shell: pwsh
+      run: |
+        & $env:SCCACHE_PATH --show-stats
