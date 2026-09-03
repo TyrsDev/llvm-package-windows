@@ -104,4 +104,6 @@ jobs:
           files: LLVM-${{ env.llvm_version }}-win64.7z
           draft: false
           prerelease: false
-          make_latest: true
+          # A manually dispatched build is usually an older version (22.1.x while 23 is current);
+          # marking it latest would make the release checker re-dispatch the newest LLVM forever.
+          make_latest: ${{ github.event_name != 'workflow_dispatch' }}
