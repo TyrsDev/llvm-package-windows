@@ -1,4 +1,5 @@
 name: Build and Release LLVM
+run-name: LLVM ${{ github.event.client_payload.version || github.event.inputs.llvm_version || '23.1.0' }} (${{ github.event_name }})
 
 on:
   push:
@@ -33,7 +34,7 @@ jobs:
   # time-boxed. Every finished object lands in sccache (backed by the Actions cache), and a
   # second attempt resumes from that warm cache when the first one runs out of time.
   build:
-    name: Build LLVM ${{ github.event.client_payload.version || github.event.inputs.llvm_version || '23.1.0' }}
+    name: Build
     runs-on: windows-latest
     timeout-minutes: 360
     outputs:
@@ -55,7 +56,7 @@ jobs:
           compression-level: 0
 
   build-resume:
-    name: Resume build LLVM ${{ github.event.client_payload.version || github.event.inputs.llvm_version || '23.1.0' }}
+    name: Resume build
     needs: build
     if: needs.build.outputs.completed != 'true'
     runs-on: windows-latest
@@ -79,7 +80,7 @@ jobs:
           compression-level: 0
 
   release:
-    name: Release LLVM ${{ github.event.client_payload.version || github.event.inputs.llvm_version || '23.1.0' }}
+    name: Release
     needs: [build, build-resume]
     if: >-
       always() && github.event_name != 'pull_request' &&
