@@ -57,6 +57,7 @@ runs:
           -DLLVM_ENABLE_ASSERTIONS=OFF `
           -DLLVM_ENABLE_DUMP=ON `
           -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZLIB=OFF -DLLVM_ENABLE_ZSTD=OFF `
+          -DLLVM_ENABLE_CURL=OFF -DLLVM_ENABLE_HTTPLIB=OFF `
           -DLLVM_ENABLE_DIA_SDK=OFF `
           -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF `
           -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_DOCS=OFF `
@@ -94,6 +95,31 @@ runs:
           exit $ninja.ExitCode
         }
         # -mx7 rather than -mx9: on a 4-core runner -mx9 on a ~14 GB tree could eat the rest of the job limit
+        # Release gate: every shipped .exe/.dll may import only DLLs Windows ships, the VC++
+        # redistributable three, or DLLs that are themselves in this package. Anything else
+        # (a zlib1.dll or libxml2.dll the runner happened to have) would be a silent runtime
+        # dependency on every consumer's machine.
+        $allowed = @('KERNEL32', 'ntdll', 'ADVAPI32', 'SHELL32', 'ole32', 'OLEAUT32', 'bcrypt',
+                     'bcryptprimitives', 'ws2_32', 'USER32', 'VERSION', 'ucrtbase',
+                     'VCRUNTIME140', 'VCRUNTIME140_1', 'MSVCP140')
+        $shipped = Get-ChildItem .\install\bin -Filter *.dll | ForEach-Object { $_.BaseName }
+        $bad = @()
+        foreach ($file in Get-ChildItem .\install\bin -Include *.exe, *.dll -Recurse) {
+          $imports = & .\install\bin\llvm-readobj.exe --coff-imports $file.FullName |
+            Select-String '^\s*Name:\s*(\S+)' | ForEach-Object { $_.Matches[0].Groups[1].Value }
+          foreach ($dll in $imports) {
+            $name = [IO.Path]::GetFileNameWithoutExtension($dll)
+            if ($name -like 'api-ms-win-*') { continue }
+            if ($allowed -contains $name -or $shipped -contains $name) { continue }
+            $bad += "$($file.Name) imports $dll"
+          }
+        }
+        if ($bad.Count -gt 0) {
+          $bad | ForEach-Object { Write-Host "::error::$_" }
+          Write-Host "Release gate failed: $($bad.Count) import(s) outside the allowlist."
+          exit 1
+        }
+        Write-Host "Release gate passed: every shipped binary imports only Windows, VC++ redistributable or in-package DLLs."
         7z a -mx7 -mmt=on "LLVM-$env:LLVM_VERSION-win64.7z" ".\install\*"
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         Get-Item "LLVM-$env:LLVM_VERSION-win64.7z" | Select-Object Name, Length
