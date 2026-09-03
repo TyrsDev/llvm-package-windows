@@ -17,6 +17,12 @@ on:
         required: true
         default: '23.1.0'
 
+# One build per LLVM version at a time: the release checker fires every six hours until the newest
+# version exists, and a second run for the same version must queue behind the first, not race it.
+concurrency:
+  group: build-llvm-${{ github.event.client_payload.version || github.event.inputs.llvm_version || '23.1.0' }}
+  cancel-in-progress: false
+
 env:
   llvm_version: ${{ github.event.client_payload.version || github.event.inputs.llvm_version || '23.1.0' }}
   SCCACHE_GHA_ENABLED: "true"
