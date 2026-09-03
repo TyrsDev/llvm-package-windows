@@ -99,8 +99,10 @@ runs:
         # redistributable three, or DLLs that are themselves in this package. Anything else
         # (a zlib1.dll or libxml2.dll the runner happened to have) would be a silent runtime
         # dependency on every consumer's machine.
+        # WINHTTP and CRYPT32 are Windows components too: LLVM 23's debuginfod client (llvm-symbolizer,
+        # llvm-objdump, llvm-cov, ...) uses WinHTTP on Windows when curl is off.
         $allowed = @('KERNEL32', 'ntdll', 'ADVAPI32', 'SHELL32', 'ole32', 'OLEAUT32', 'bcrypt',
-                     'bcryptprimitives', 'ws2_32', 'USER32', 'VERSION', 'ucrtbase',
+                     'bcryptprimitives', 'ws2_32', 'USER32', 'VERSION', 'WINHTTP', 'CRYPT32', 'ucrtbase',
                      'VCRUNTIME140', 'VCRUNTIME140_1', 'MSVCP140')
         $shipped = Get-ChildItem .\install\bin -Filter *.dll | ForEach-Object { $_.BaseName }
         $bad = @()
