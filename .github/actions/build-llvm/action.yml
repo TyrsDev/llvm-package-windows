@@ -42,6 +42,8 @@ runs:
       uses: mozilla-actions/sccache-action@v0.0.11
 
     - name: Configure
+      # LLVM_ENABLE_DUMP=ON keeps the Record::dump() family in this no-assertions build, as Debian's
+      # packages do. The tblgen crate behind melior-macro links against it and otherwise fails on Windows.
       shell: pwsh
       run: |
         cmake -S llvm/llvm -B build -G Ninja `
@@ -53,6 +55,7 @@ runs:
           -DLLVM_ENABLE_PROJECTS="clang;lld;mlir" `
           -DLLVM_TARGETS_TO_BUILD="X86;AArch64;WebAssembly;SPIRV" `
           -DLLVM_ENABLE_ASSERTIONS=OFF `
+          -DLLVM_ENABLE_DUMP=ON `
           -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZLIB=OFF -DLLVM_ENABLE_ZSTD=OFF `
           -DLLVM_ENABLE_DIA_SDK=OFF `
           -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF `
