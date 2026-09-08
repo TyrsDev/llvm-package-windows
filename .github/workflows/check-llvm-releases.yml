@@ -9,8 +9,8 @@ jobs:
   check-llvm-release:
     runs-on: ubuntu-latest
     permissions:
-      actions: write   # keepalive re-enables this scheduled workflow
-      contents: read
+      actions: write    # keepalive re-enables this scheduled workflow
+      contents: write   # repository_dispatch to trigger the build workflow
     steps:
       # GitHub disables scheduled workflows after 60 days without commits, which is how
       # LLVM 22.x and 23.1.0 were missed. This re-enables the workflow on every run.
