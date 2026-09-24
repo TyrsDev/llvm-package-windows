@@ -17,7 +17,7 @@ variables of the crates you use at it, e.g. for LLVM 23:
 | bindgen (used by mlir-sys and tblgen) | `LIBCLANG_PATH=C:\LLVM\bin` |
 
 mlir-sys and tblgen generate their bindings with libclang, which has to find the MSVC and Windows SDK
-headers. Build melior-based crates from an "x64 Native Tools Command Prompt for VS 2022" (or after
+headers. Build melior-based crates from an "x64 Native Tools Command Prompt for VS 2026" (or after
 running `vcvars64.bat`); otherwise bindgen fails with `'inttypes.h' file not found`.
 
 The package contains the X86, AArch64, WebAssembly and SPIR-V backends only. inkwell's default
@@ -26,7 +26,7 @@ list the targets you need, e.g. `features = ["llvm23-1", "target-x86", "target-a
 
 ## Dependencies
 
-- [Visual Studio 2022](https://visualstudio.microsoft.com/vs/community/) with the "Desktop development with C++" workload, to link against this build.
+- [Visual Studio 2026](https://visualstudio.microsoft.com/vs/community/) with the "Desktop development with C++" workload, to link against this build.
 - [7-zip](https://www.7-zip.org/download.html) to unpack.
 
 ## Releases

@@ -106,7 +106,7 @@ jobs:
             Targets: X86, AArch64, WebAssembly, SPIR-V. Includes `LLVM-C.dll`, `MLIR-C.dll`, `libclang.dll` and the
             compiler-rt builtins. inkwell users: the package has four backends, so depend on inkwell with
             `default-features = false` and explicit `target-*` features.
-            Requires [Visual Studio 2022](https://visualstudio.microsoft.com/vs/community/) with the "Desktop development with C++" workload.
+            Requires [Visual Studio 2026](https://visualstudio.microsoft.com/vs/community/) with the "Desktop development with C++" workload.
             Requires [7-zip](https://www.7-zip.org/download.html) to unpack.
           files: LLVM-${{ env.llvm_version }}-win64.7z
           draft: false
