@@ -2,13 +2,6 @@ name: Build and Release LLVM
 run-name: LLVM ${{ github.event.client_payload.version || github.event.inputs.llvm_version || '23.1.0' }} (${{ github.event_name }})
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - '.github/workflows/build.yml'
-      - '.github/actions/build-llvm/**'
-  pull_request:
-    branches: [master]
   repository_dispatch:
     types: [update-llvm-version]
   workflow_dispatch:
