@@ -24,6 +24,10 @@ The package contains the X86, AArch64, WebAssembly and SPIR-V backends only. ink
 `target-all` feature references every backend, so depend on it with `default-features = false` and
 list the targets you need, e.g. `features = ["llvm23-1", "target-x86", "target-aarch64", "target-webassembly"]`.
 
+The package also ships the x86_64 AddressSanitizer runtime, so `clang -fsanitize=address` works out of
+the box. Instrumented programs load `clang_rt.asan_dynamic-x86_64.dll`, which is in `bin` as well as
+`lib\clang\<ver>\lib\windows`, so keep `bin` on `PATH` when running them.
+
 ## Dependencies
 
 - [Visual Studio 2026](https://visualstudio.microsoft.com/vs/community/) with the "Desktop development with C++" workload, to link against this build.

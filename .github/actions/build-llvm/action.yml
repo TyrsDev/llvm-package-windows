@@ -67,8 +67,10 @@ runs:
           -DMLIR_BUILD_MLIR_C_DYLIB=ON `
           -DLLVM_BUILD_LLVM_C_DYLIB=ON `
           -DLLVM_ENABLE_RUNTIMES="compiler-rt" `
+          -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF `
           -DCOMPILER_RT_BUILD_BUILTINS=ON `
-          -DCOMPILER_RT_BUILD_SANITIZERS=OFF -DCOMPILER_RT_BUILD_XRAY=OFF `
+          -DCOMPILER_RT_BUILD_SANITIZERS=ON -DCOMPILER_RT_SANITIZERS_TO_BUILD=asan `
+          -DCOMPILER_RT_BUILD_XRAY=OFF `
           -DCOMPILER_RT_BUILD_LIBFUZZER=OFF -DCOMPILER_RT_BUILD_PROFILE=OFF `
           -DCOMPILER_RT_BUILD_MEMPROF=OFF -DCOMPILER_RT_BUILD_ORC=OFF `
           -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF -DCOMPILER_RT_INCLUDE_TESTS=OFF
@@ -94,6 +96,31 @@ runs:
           "completed=false" >> $env:GITHUB_OUTPUT
           exit $ninja.ExitCode
         }
+        # AddressSanitizer: programs built with -fsanitize=address load clang_rt.asan_dynamic-x86_64.dll at
+        # run time (the static and dynamic thunks only differ in how they bind to it). A copy in bin\ lets
+        # them find it through PATH; the smoke test proves the runtime links and reports an overflow.
+        $runtimes = Get-ChildItem .\install\lib\clang\*\lib\windows | Select-Object -First 1
+        foreach ($f in 'clang_rt.asan_dynamic-x86_64.dll', 'clang_rt.asan_dynamic-x86_64.lib',
+                       'clang_rt.asan_dynamic_runtime_thunk-x86_64.lib', 'clang_rt.asan_static_runtime_thunk-x86_64.lib') {
+          if (-not (Test-Path (Join-Path $runtimes.FullName $f))) {
+            Write-Host "::error::AddressSanitizer runtime $f is missing from $($runtimes.FullName)"
+            "completed=false" >> $env:GITHUB_OUTPUT
+            exit 1
+          }
+        }
+        Copy-Item (Join-Path $runtimes.FullName 'clang_rt.asan_dynamic-x86_64.dll') .\install\bin\
+        Set-Content asan-smoke.c 'int main(void) { char b[4]; volatile int i = 4; b[i] = 1; return b[0]; }'
+        & .\install\bin\clang.exe -fsanitize=address -fuse-ld=lld asan-smoke.c -o asan-smoke.exe
+        if ($LASTEXITCODE -ne 0) { Write-Host "::error::-fsanitize=address does not link"; "completed=false" >> $env:GITHUB_OUTPUT; exit 1 }
+        $env:PATH = "$PWD\install\bin;$env:PATH"
+        $report = (& .\asan-smoke.exe 2>&1 | Out-String)
+        if ($LASTEXITCODE -eq 0 -or $report -notmatch 'AddressSanitizer: stack-buffer-overflow') {
+          Write-Host $report
+          Write-Host "::error::the AddressSanitizer smoke test did not report its overflow"
+          "completed=false" >> $env:GITHUB_OUTPUT
+          exit 1
+        }
+        Write-Host "AddressSanitizer smoke test passed."
         # -mx7 rather than -mx9: on a 4-core runner -mx9 on a ~14 GB tree could eat the rest of the job limit
         # Release gate: every shipped .exe/.dll may import only DLLs Windows ships, the VC++
         # redistributable three, or DLLs that are themselves in this package. Anything else
